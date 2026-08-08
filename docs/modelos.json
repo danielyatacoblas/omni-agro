@@ -1,0 +1,69 @@
+[
+  {
+    "archivo": "uav_weed_yolo26.pt",
+    "rol": "Cultivo y maleza desde el aire",
+    "umbral": 0.05,
+    "imgsz": 512,
+    "epochs": 92,
+    "dataset": "retrain_data",
+    "licencia": "AGPL-3.0 (https://ultralytics.com/license)",
+    "metricas": {
+      "precision": 0.8447,
+      "recall": 0.7109,
+      "mAP50": 0.808,
+      "mAP50-95": 0.5558
+    },
+    "parametros": 26179428,
+    "clases": 2,
+    "nombres": [
+      "crop",
+      "weed"
+    ],
+    "video": "plantacion_top.mp4",
+    "res": 640,
+    "dispositivo": "cuda",
+    "ms": 96.3,
+    "fps": 10.4,
+    "dets": 71.4,
+    "conf_media": 0.176,
+    "mejor_ms": 72.9,
+    "fuente": [
+      "Afinado sobre vistas cenitales de dron",
+      null
+    ]
+  },
+  {
+    "archivo": "yolov8s-world.pt",
+    "rol": "Cultivos fuera del vocabulario del UAV",
+    "umbral": 0.05,
+    "imgsz": 640,
+    "epochs": 100,
+    "dataset": null,
+    "licencia": "AGPL-3.0 License (https://ultralytics.com/license)",
+    "metricas": {},
+    "parametros": 13383496,
+    "clases": 80,
+    "nombres": [
+      "person",
+      "bicycle",
+      "car",
+      "motorcycle",
+      "airplane",
+      "bus",
+      "train",
+      "truck"
+    ],
+    "video": "cafetal.mp4",
+    "res": 640,
+    "dispositivo": "cuda",
+    "ms": 22.2,
+    "fps": 45.0,
+    "dets": 1.7,
+    "conf_media": 0.105,
+    "mejor_ms": 16.6,
+    "fuente": [
+      "Ultralytics YOLO-World",
+      "https://docs.ultralytics.com/models/yolo-world/"
+    ]
+  }
+]
