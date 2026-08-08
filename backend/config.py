@@ -28,7 +28,7 @@ class Config:
     agro_model: str = os.getenv("AGRO_MODEL", "weights/uav_weed_yolo26.pt")
     yolo_world_model: str = os.getenv(
         "YOLO_WORLD_MODEL",
-        r"C:/Users/USER/Desktop/ACCESORIO/Pixel-Civik/vision-node/server/shoplifting/yolov8s-world.pt")
+        "weights/yolov8s-world.pt")
     # clases open-vocabulary para YOLO-World (las que contengan "weed"/"maleza"
     # se cuentan como maleza; el resto como planta de cultivo)
     world_classes: list = field(default_factory=lambda: [

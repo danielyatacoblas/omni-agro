@@ -19,12 +19,12 @@ entrega, con **datos reales** del procesamiento (no simulados):
 
 ## 1. Instalar
 
-Este MVP **comparte el mismo Python global** que `first_mvp_ppe` y
-`first_mvp_tranking` (ya trae torch CUDA, ultralytics y supervision).
+Este MVP **comparte el mismo Python global** que `omni-ppe` y
+`omni-retail` (ya trae torch CUDA, ultralytics y supervision).
 **No hay nada nuevo que instalar.**
 
 ```bash
-cd first_mvp_agro
+cd omni-agro
 python download_models.py          # pesos (53 MB) + videos de dron de muestra
 python download_models.py --no-video   # solo pesos
 ```
@@ -86,7 +86,7 @@ clase y cuenta todo como planta, que es lo correcto para censo y huecos.
 
 Los de `download_models.py` vienen de Pexels (libres). El mejor para demo es
 **plantacion_top.mp4** (vista cenital de huerto en hileras). Para videos ideales
-generados con IA, ver `PROMPTS_VIDEOS_IA.md`.
+generados con IA, ver [`docs/videos-de-prueba.md`](docs/videos-de-prueba.md).
 
 > Regla de oro: el video debe ser **cenital** (cámara mirando hacia abajo),
 > 10–40 m de altura, con plantas individuales distinguibles. Tomas oblicuas al
@@ -99,3 +99,22 @@ generados con IA, ver `PROMPTS_VIDEOS_IA.md`.
   muy distintos usar el modo `cultivo` y/o el detector `world`.
 - Palmeras/árboles muy grandes aún no tienen modelo confiable (se evaluó
   RT-DETR de palmeras y se descartó por falsos positivos).
+
+## Pruebas
+
+```bash
+python -m pytest -q
+```
+
+Quince comprobaciones en cuatro bloques: que la config carga y los pesos están,
+que el detector responde ante un frame vacío sin inventarse plantas, que la
+analítica cuenta las plantas únicas de una hilera sintética, encuentra el hueco
+que se le dejó a propósito y **dispara la alerta de despoblamiento**, y que una
+pasada real de 60 fotogramas deja el MP4 anotado y el CSV con su resumen.
+
+Lo que falta por no venir en el repositorio — pesos, videos — se **salta**, no
+se da por bueno. Y un fallo rompe la suite: antes se imprimía «✗» y pytest
+seguía en verde, que es peor que no tener pruebas.
+
+<sub>OMNI Agro · ApexCorp — desarrollado por
+<a href="https://github.com/danielyatacoblas">Daniel Yataco Blas</a></sub>
