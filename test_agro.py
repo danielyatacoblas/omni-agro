@@ -14,29 +14,49 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
 ROOT = Path(__file__).resolve().parent
 OK = FAIL = 0
 
+# Se puede correr de dos maneras y cada una entiende el fallo de forma distinta:
+# como script (`python test_agro.py`) el resultado es el código de salida, y
+# como suite (`pytest`) tiene que ser una excepción. Imprimir «✗» y seguir deja
+# a pytest en verde con todo roto, que es peor que no tener pruebas.
+BAJO_PYTEST = "pytest" in sys.modules
+
 
 def check(name, cond, detail=""):
     global OK, FAIL
     if cond:
         OK += 1
         print(f"  ✓ {name}")
-    else:
-        FAIL += 1
-        print(f"  ✗ {name} {detail}")
+        return
+    FAIL += 1
+    print(f"  ✗ {name} {detail}")
+    if BAJO_PYTEST:
+        raise AssertionError(f"{name} {detail}".strip())
+
+
+def falta(que: str, como: str):
+    """Lo que no está por no venir en el repositorio no es un fallo: se salta."""
+    if BAJO_PYTEST:
+        import pytest
+        pytest.skip(f"falta {que} — {como}")
+    check(f"{que} existe", False, f"— {como}")
 
 
 def test_config():
     print("\n[1] Config")
     from backend.config import config
     check("config carga", config.port == 8020)
-    check("modelo agro existe", (ROOT / config.agro_model).exists(),
-          f"— falta {config.agro_model}, corre download_models.py")
+    if not (ROOT / config.agro_model).exists():
+        return falta(config.agro_model, "corre download_models.py")
+    check("modelo agro existe", True)
 
 
 def test_detector():
     print("\n[2] Detector (inferencia sintética)")
     import numpy as np
+    from backend.config import config
     from backend.detector import get_detector
+    if not (ROOT / config.agro_model).exists():
+        return falta(config.agro_model, "corre download_models.py")
     d = get_detector("agro")
     dets = d.infer(np.zeros((720, 1280, 3), dtype=np.uint8), 0.1)
     check("detector agro infiere", dets is not None)
@@ -104,8 +124,7 @@ def test_video():
     print("\n[4] Video real (60 frames, plantacion_top)")
     vid = ROOT / "videos" / "plantacion_top.mp4"
     if not vid.exists():
-        check("video demo existe", False, "— corre download_models.py")
-        return
+        return falta("videos/plantacion_top.mp4", "corre download_models.py")
     from backend.processor import VideoProcessor
     p = VideoProcessor()
     p.class_mode = "cultivo"
