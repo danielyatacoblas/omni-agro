@@ -3,7 +3,7 @@
 Lee el video una vez de principio a fin (archivo, no dron en vivo), detecta
 plantas/malezas, las sigue con ByteTrack (para contar únicas sin duplicar),
 dibuja cajas, huecos de siembra y ROI, y publica el JPEG anotado (MJPEG) +
-un snapshot de estadísticas reales. Mismo patrón que first_mvp_tranking.
+un snapshot de estadísticas reales. Mismo patrón que omni-retail.
 """
 from __future__ import annotations
 
