@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OMNI Agro — ApexCorp</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- HEADER -->
+    <header class="hdr">
+      <div class="brand">
+        <div class="logo">A<span>◢</span></div>
+        <div>
+          <div class="brand-title">OMNI&nbsp;Agro <span class="ver">MVP</span></div>
+          <div class="brand-sub">ApexCorp&nbsp;S.A.C. · Censo de plantas por dron</div>
+        </div>
+      </div>
+      <div class="hdr-meta">
+        <span class="pill live"><span id="liveDot" class="dot off"></span><span id="liveTxt">En espera</span></span>
+        <span class="pill"><i data-ico="cpu"></i><span id="devicePill">—</span></span>
+        <span class="pill hide-sm"><i data-ico="clock"></i><span id="clock">—</span></span>
+      </div>
+    </header>
+
+    <!-- USE-CASE SELECTOR -->
+    <nav class="usecases" id="usecases">
+      <button class="uc active" data-uc="conteo">
+        <span class="uc-n">01</span>
+        <span class="uc-ico"><i data-ico="sprout"></i></span>
+        <span class="uc-tx"><b>Conteo de plantas</b><small>Censo del sobrevuelo</small></span>
+      </button>
+      <button class="uc" data-uc="malezas">
+        <span class="uc-n">02</span>
+        <span class="uc-ico"><i data-ico="bug"></i></span>
+        <span class="uc-tx"><b>Malezas</b><small>Presión de maleza</small></span>
+      </button>
+      <button class="uc" data-uc="despoblamiento">
+        <span class="uc-n">03</span>
+        <span class="uc-ico"><i data-ico="grid"></i></span>
+        <span class="uc-tx"><b>Despoblamiento</b><small>Huecos de siembra</small></span>
+      </button>
+    </nav>
+
+    <!-- WORKSPACE -->
+    <div class="workspace">
+      <!-- MAIN: VISOR -->
+      <section class="visor">
+        <!-- steps -->
+        <div class="steps">
+          <div class="step" data-step="1"><span class="s-n">1</span><span>Elige un video de dron</span></div>
+          <div class="step-sep"></div>
+          <div class="step" data-step="2"><span class="s-n">2</span><span>ROI opcional (lote)</span></div>
+          <div class="step-sep"></div>
+          <div class="step" data-step="3"><span class="s-n">3</span><span>Procesar</span></div>
+        </div>
+
+        <!-- toolbar -->
+        <div class="toolbar">
+          <div class="select-wrap"><i data-ico="film"></i>
+            <select id="videoSelect" class="sel"></select>
+          </div>
+          <div class="select-wrap"><i data-ico="cpu"></i>
+            <select id="detectorSelect" class="sel" title="Modelo de detección"></select>
+          </div>
+          <div class="select-wrap conf-wrap" title="Confianza de detección">
+            <i data-ico="sliders"></i>
+            <input id="confRange" type="range" min="0.03" max="0.40" step="0.01" value="0.05" />
+            <span id="confVal" class="conf-val">0.05</span>
+          </div>
+          <button id="drawBtn" class="btn tool"><i data-ico="scan"></i><span id="drawLbl">Dibujar ROI</span></button>
+          <button id="undoBtn" class="btn tool icon-only" title="Deshacer"><i data-ico="undo"></i></button>
+          <button id="clearBtn" class="btn tool icon-only" title="Borrar ROI"><i data-ico="trash"></i></button>
+          <div class="tb-spacer"></div>
+          <button id="startBtn" class="btn primary"><i data-ico="play"></i>Procesar</button>
+          <button id="stopBtn" class="btn ghost" disabled><i data-ico="stop"></i>Detener</button>
+        </div>
+
+        <!-- viewport -->
+        <div class="viewport" id="viewport">
+          <img id="frameImg" class="layer" alt="frame" />
+          <img id="stream" class="layer" alt="stream" style="display:none" />
+          <canvas id="editor" class="layer editor"></canvas>
+          <div id="hint" class="draw-hint" style="display:none"></div>
+          <div id="placeholder" class="placeholder">
+            <i data-ico="mouse-pointer"></i>
+            <div>Elige un video de dron — el <b>ROI de lote</b> es opcional</div>
+          </div>
+          <div class="vp-badge" id="vpBadge"><i data-ico="route"></i><span id="vpBadgeTxt">Vista previa</span></div>
+          <div id="procOverlay" class="proc-overlay" style="display:none">
+            <div class="spin"></div>
+            <span id="procTxt">Cargando modelo…</span>
+            <small>YOLO26 UAV inicializando · unos segundos</small>
+          </div>
+        </div>
+        <div class="progress"><div id="progressBar"></div></div>
+
+        <div class="zonebar">
+          <span class="zb-label"><i data-ico="layers"></i>Configuración</span>
+          <span id="zoneChips"></span>
+          <span id="noZones" class="zb-empty">sin ROI — se analiza todo el frame</span>
+        </div>
+      </section>
+
+      <!-- SIDE: ANALÍTICA -->
+      <aside class="analytics">
+        <div class="a-head"><span class="a-kick">✦ Analítica</span><h2 id="ucTitle">Conteo de plantas</h2></div>
+
+        <div class="kpis" id="kpis">
+          <div class="kpi"><span class="kpi-ico green"><i data-ico="sprout"></i></span><div><div class="kpi-v" id="kPlants">0</div><div class="kpi-l">Plantas únicas</div></div></div>
+          <div class="kpi"><span class="kpi-ico blue"><i data-ico="eye"></i></span><div><div class="kpi-v" id="kFrame">0</div><div class="kpi-l">Plantas en frame</div></div></div>
+          <div class="kpi"><span class="kpi-ico amber"><i data-ico="bug"></i></span><div><div class="kpi-v" id="kWeeds">0</div><div class="kpi-l">Malezas únicas</div></div></div>
+          <div class="kpi"><span class="kpi-ico orange"><i data-ico="grid"></i></span><div><div class="kpi-v" id="kGap">0%</div><div class="kpi-l">Despoblamiento</div></div></div>
+        </div>
+
+        <!-- CONTEO -->
+        <div class="card mod-panel" data-mod="conteo">
+          <div class="card-t"><i data-ico="activity"></i>Plantas durante el sobrevuelo</div>
+          <div class="chart-wrap"><canvas id="flowChart"></canvas></div>
+          <div class="legend"><span><i class="lg" style="background:#6FA80C"></i>Plantas/frame</span><span><i class="lg" style="background:#E5484D"></i>Malezas/frame</span><span><i class="lg dash"></i>Despoblamiento %</span></div>
+          <div class="io-row">
+            <div class="io in"><span>Prom/frame</span><b id="ioAvg">0</b></div>
+            <div class="io peak"><span>Pico/frame</span><b id="ioPeak">0</b></div>
+            <div class="io out"><span>Únicas</span><b id="ioUnique">0</b></div>
+          </div>
+        </div>
+
+        <!-- MALEZAS -->
+        <div class="card mod-panel" data-mod="malezas" style="display:none">
+          <div class="card-t"><i data-ico="bug"></i>Presión de maleza</div>
+          <div class="shelf">
+            <div class="shelf-hd"><span class="shelf-nm"><span class="dot-s" id="weedDot" style="background:#129A6B"></span>% del total detectado</span><span id="weedPct" style="font-weight:700">0%</span></div>
+            <div class="shelf-track"><div class="shelf-fill" id="weedBar" style="width:0%;background:#129A6B"></div></div>
+          </div>
+          <div class="io-row">
+            <div class="io out"><span>Malezas únicas</span><b id="wUnique">0</b></div>
+            <div class="io in"><span>Malezas en frame</span><b id="wFrame">0</b></div>
+          </div>
+          <p class="note">Usa el modo <b>según modelo</b> (crop/weed). En cultivos que el modelo no conoce la clase puede confundirse.</p>
+        </div>
+
+        <!-- DESPOBLAMIENTO -->
+        <div class="card mod-panel" data-mod="despoblamiento" style="display:none">
+          <div class="card-t"><i data-ico="grid"></i>Huecos de siembra <span class="exp">experimental</span></div>
+          <div class="shelf">
+            <div class="shelf-hd"><span class="shelf-nm"><span class="dot-s" id="gapDot" style="background:#129A6B"></span>% de celdas huecas en hileras</span><span id="gapPct" style="font-weight:700">0%</span></div>
+            <div class="shelf-track"><div class="shelf-fill" id="gapBar" style="width:0%;background:#129A6B"></div></div>
+          </div>
+          <div class="io-row">
+            <div class="io out"><span>Celdas huecas</span><b id="gapCells">0</b></div>
+            <div class="io in"><span>Celdas en hileras</span><b id="rowCells">0</b></div>
+          </div>
+          <p class="note">Grilla sobre el frame: una celda es <b>hueco</b> si está vacía pero su hilera está mayormente cultivada. Las celdas huecas se pintan en rojo sobre el video.</p>
+        </div>
+      </aside>
+    </div>
+
+    <!-- BOTTOM: detecciones + alertas -->
+    <div class="bottom">
+      <section class="people-strip">
+        <div class="ps-head">
+          <span><i data-ico="sprout"></i>Detecciones activas <b id="activeCount">0</b></span>
+          <span class="ps-sub"><i data-ico="route"></i>tracks confirmados en cuadro</span>
+        </div>
+        <div class="ps-list" id="activePeople"><div class="ps-empty">Sin detecciones en cuadro todavía.</div></div>
+      </section>
+
+      <section class="alerts">
+        <div class="alerts-hd">
+          <div class="alerts-t"><i data-ico="alert"></i>Alertas <span id="alertCount" class="badge-n">0</span></div>
+          <button id="exportBtn" class="btn ghost sm"><i data-ico="download"></i>CSV</button>
+        </div>
+        <div class="alerts-body">
+          <table><thead><tr><th>Tiempo</th><th>Módulo</th><th>Alerta</th><th class="hide-sm">Detalle</th></tr></thead>
+          <tbody id="alertRows"></tbody></table>
+          <div id="noAlerts" class="zb-empty" style="padding:12px">Sin alertas todavía.</div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>
