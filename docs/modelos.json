@@ -22,11 +22,11 @@
     "video": "plantacion_top.mp4",
     "res": 640,
     "dispositivo": "cuda",
-    "ms": 96.3,
-    "fps": 10.4,
+    "ms": 98.9,
+    "fps": 10.1,
     "dets": 71.4,
     "conf_media": 0.176,
-    "mejor_ms": 72.9,
+    "mejor_ms": 81.5,
     "fuente": [
       "Afinado sobre vistas cenitales de dron",
       null
@@ -56,11 +56,11 @@
     "video": "cafetal.mp4",
     "res": 640,
     "dispositivo": "cuda",
-    "ms": 22.2,
-    "fps": 45.0,
+    "ms": 21.0,
+    "fps": 47.5,
     "dets": 1.7,
     "conf_media": 0.105,
-    "mejor_ms": 16.6,
+    "mejor_ms": 17.9,
     "fuente": [
       "Ultralytics YOLO-World",
       "https://docs.ultralytics.com/models/yolo-world/"
