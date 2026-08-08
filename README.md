@@ -1,104 +1,123 @@
-# OMNI Agro — MVP de censo de plantas por dron (ApexCorp)
+# OMNI Agro — censo de plantas por dron
 
-Dashboard funcional de **visión computacional para agricultura** sobre video
-real de dron. Detecta y **cuenta plantas con YOLO26-UAV + ByteTrack**, y
-entrega, con **datos reales** del procesamiento (no simulados):
+> **Visión computacional · YOLO26-UAV + ByteTrack · FastAPI · CUDA o CPU**
+>
+> ![estado](https://img.shields.io/badge/estado-MVP%20funcional-2D6CDF)
+> ![version](https://img.shields.io/badge/versión-v0.3.0-129A6B)
+> ![pruebas](https://img.shields.io/badge/pruebas-15%20comprobaciones-129A6B)
+> ![licencia](https://img.shields.io/badge/uso-interno%20ApexCorp-E19100)
 
-- **Conteo de plantas únicas** del sobrevuelo (tracking evita contar doble).
-- **Presión de maleza** (% de lo detectado que es maleza — clases crop/weed).
-- **Despoblamiento**: huecos de siembra por grilla sobre las hileras
-  (heurística *experimental*, celdas huecas pintadas en rojo sobre el video).
-- **ROI de lote** dibujable (opcional): solo se analiza lo de adentro.
-- **Alertas** reales (presión de maleza alta, despoblamiento sostenido).
-- **Exportación a CSV** de todo el reporte.
+![OMNI Agro en marcha](docs/capturas/01-conteo-de-plantas.png)
 
-> **Modelo:** YOLO26 entrenado en imágenes UAV con clases `crop`/`weed`
-> (HuggingFace `smAIL-WS/uav_weed_detection`) — no se entrena desde 0.
-> **Aceleración:** CUDA (RTX 3060), ~36 fps de inferencia a 640px.
-> Alternativa en la UI: YOLO-World open-vocabulary (vegetación por nombre).
+## El problema
 
-## 1. Instalar
+Contar plantas en campo se hace a mano, por muestreo, y el resultado es una
+estimación que nadie puede comprobar. Lo mismo con los huecos de siembra y con
+la maleza: se sabe que «hay bastante» en tal lote, y poco más.
 
-Este MVP **comparte el mismo Python global** que `omni-ppe` y
-`omni-retail` (ya trae torch CUDA, ultralytics y supervision).
-**No hay nada nuevo que instalar.**
+El dron ya sobrevuela. OMNI Agro coge ese video y devuelve **tres cifras que se
+pueden auditar**: cuántas plantas hay, qué porcentaje del surco está vacío y
+cuánta presión de maleza tiene el lote.
 
-```bash
-cd omni-agro
-python download_models.py          # pesos (53 MB) + videos de dron de muestra
-python download_models.py --no-video   # solo pesos
+| Módulo | Qué responde | Con qué |
+|---|---|---|
+| **Conteo** | ¿Cuántas plantas hay en el lote? | Detección por fotograma + ByteTrack para no contar la misma dos veces |
+| **Malezas** | ¿Cuánta presión de maleza? | Segunda clase del mismo modelo, sobre el total detectado |
+| **Despoblamiento** | ¿Qué parte del surco está vacía? | Rejilla sobre el fotograma; celdas de hilera sin planta |
+
+## Qué se ve
+
+| | |
+|---|---|
+| **Censo del sobrevuelo**<br><img src="docs/capturas/01-conteo-de-plantas.png" width="100%"><br><sub>384 plantas únicas y 29,7 % de despoblamiento sobre video real</sub> | **Presión de maleza**<br><img src="docs/capturas/02-malezas.png" width="100%"><br><sub>segunda clase del mismo modelo, sobre el total detectado</sub> |
+| **Huecos de siembra**<br><img src="docs/capturas/03-despoblamiento.png" width="100%"><br><sub>rejilla sobre el fotograma; celdas de hilera sin planta</sub> | **ROI del lote**<br><img src="docs/capturas/04-editor-de-zonas.png" width="100%"><br><sub>opcional: acota el análisis a una parcela</sub> |
+
+## Cómo funciona
+
+```mermaid
+flowchart LR
+  V["Video cenital de dron"] --> P["Lector de fotogramas"]
+  P --> D["YOLO26-UAV<br/>cultivo + maleza"]
+  D --> T["ByteTrack<br/>un ID por planta"]
+  T --> A["Analítica"]
+  A --> U1["Plantas únicas"]
+  A --> U2["Presión de maleza"]
+  A --> U3["Huecos de siembra"]
+  A --> M["Anotado + MJPEG"]
+  A --> C["CSV"]
 ```
 
-## 2. Ejecutar
+**Por qué el seguimiento y no una simple suma.** Una planta aparece en decenas
+de fotogramas seguidos. Sumar detecciones daría un número enorme y sin sentido;
+el seguimiento le asigna un ID y la cuenta una sola vez. Ese es todo el truco
+del censo, y también el error que no se ve: el video se procesa, sale un
+número, y ese número está mal sin que nada falle.
+
+**Por qué el umbral es `0.05` y no `0.25`.** Desde 20 metros una planta ocupa
+30–120 píxeles y el modelo nunca está muy seguro. Con un umbral normal se
+pierde la mitad del lote. Aquí interesa recoger de más y dejar que el
+seguimiento descarte lo que no se sostiene entre fotogramas.
+
+**Los huecos se miden por rejilla, no por distancia entre plantas.** Se divide
+el fotograma en celdas; una celda de una hilera que ya tiene plantas a los
+lados y ninguna dentro es un hueco. Aguanta que el dron no vuele perfectamente
+recto, que es lo que pasa siempre.
+
+### El modelo
+
+| Modelo | Para qué | Por qué |
+|---|---|---|
+| **YOLO26-UAV** (`uav_weed_yolo26.pt`) | Cultivo y maleza desde el aire | Entrenado con vistas cenitales; los modelos de suelo fallan desde arriba |
+| **YOLO-World** | Cultivos raros | Vocabulario abierto para lo que el modelo UAV no cubre |
+
+> **Solo sirve video cenital.** Cámara mirando 90° hacia abajo, 10–40 m de
+> altura, vuelo lento y recto. Una toma oblicua al horizonte no se puede contar
+> — las plantas se solapan unas con otras y el conteo pierde todo el sentido.
+> En [`docs/videos-de-prueba.md`](docs/videos-de-prueba.md) están los prompts
+> para generar videos válidos con IA.
+
+## Probarlo
 
 ```bash
-uvicorn backend.main:app --host 0.0.0.0 --port 8020
-# o doble clic en arrancar.bat
+pip install -r requirements.txt
+python download_models.py
+python -m uvicorn backend.main:app --port 8020    # o arrancar.bat
 ```
 
-Abre <http://localhost:8020>, elige un video, (opcional) dibuja el ROI del
-lote, elige el módulo (conteo / malezas / despoblamiento) y pulsa **Procesar**.
+### Por qué los pesos y los videos no están aquí
 
-### Modo headless (sin servidor)
+No son código: son la entrada y la salida del sistema. Varios pasan de los
+100 MB que GitHub rechaza de plano, y clonar el proyecto pasaría de segundos a
+minutos para traerse archivos que se regeneran o se descargan.
 
 ```bash
-python run_video.py videos/plantacion_top.mp4                 # video anotado + CSV en outputs/
-python run_video.py videos/plantacion_top.mp4 --max-frames 100 --class-mode cultivo
+python download_models.py          # los recupera y dice cuáles faltan
 ```
 
-## 3. Módulos (pestañas de la UI)
+## Cómo está montado
 
-| Módulo | Qué mide | Modo de clases |
-| ------ | -------- | -------------- |
-| **01 Conteo de plantas** | Plantas únicas del sobrevuelo + promedio/pico por frame | `cultivo` (toda detección = planta) |
-| **02 Malezas** | Presión de maleza (% del total detectado) | `modelo` (crop/weed del modelo) |
-| **03 Despoblamiento** | % de celdas sin planta en hileras cultivadas | `cultivo` |
+```
+backend/
+├── config.py     todo por variable de entorno
+├── detector.py   modelos cargados solo cuando se usan
+├── processor.py  el bucle: leer, detectar, seguir, anotar, emitir
+├── analytics.py  detecciones → censo, maleza y huecos
+├── zones.py      ROI opcional del lote
+└── main.py       API y streaming MJPEG
+frontend/         interfaz sin framework
+scripts/          generadores de las capturas y del diagrama de ramas
+run_video.py      procesa un video entero a archivo, sin navegador
+```
 
-**¿Por qué dos modos de clases?** El modelo distingue `crop`/`weed` según el
-cultivo con el que fue entrenado. En cultivos que no conoce (arándano, cítrico,
-palto) puede clasificar el cultivo como "weed"; el modo `cultivo` ignora la
-clase y cuenta todo como planta, que es lo correcto para censo y huecos.
+## Ajustes (`.env`)
 
-## 4. Ajustes (`.env`)
-
-| Clave | Descripción |
-| ----- | ----------- |
-| `DETECTOR` | `agro` (YOLO26 UAV) o `world` (YOLO-World) |
-| `DEVICE` | `cuda:0` o `cpu` |
-| `DEFAULT_CONF` | Confianza de detección (0.05 — el slider de la UI la sobreescribe) |
-| `CLASS_MODE` | `modelo` o `cultivo` (la pestaña de la UI la sobreescribe) |
-| `GRID_COLS` | Columnas de la grilla de despoblamiento (14) |
-| `ROW_OCCUPIED_FRAC` | % de celdas ocupadas para considerar la hilera cultivada (0.6) |
-| `GAP_ALERT_PCT` / `WEED_ALERT_PCT` | Umbrales de alerta (%) |
-| `FRAME_STRIDE` | 1 = todos los frames; 2-3 = más rápido |
-
-## 5. Cómo se calculan las métricas
-
-- **Plantas únicas**: cada track de ByteTrack visto ≥ `MIN_TRACK_FRAMES` frames
-  cuenta una vez. Con el dron avanzando, es un **estimado** (los re-ID pueden
-  duplicar; se mitiga con `TRACK_LOST_BUFFER` corto).
-- **Presión de maleza**: `malezas / (plantas + malezas)` por frame, suavizado (EMA).
-- **Despoblamiento**: grilla de `GRID_COLS` columnas; una celda es **hueco** si
-  está vacía pero su fila o columna de grilla está mayormente cultivada
-  (≥ `ROW_OCCUPIED_FRAC`). % suavizado con EMA. Documentado como experimental.
-
-## 6. Videos de prueba
-
-Los de `download_models.py` vienen de Pexels (libres). El mejor para demo es
-**plantacion_top.mp4** (vista cenital de huerto en hileras). Para videos ideales
-generados con IA, ver [`docs/videos-de-prueba.md`](docs/videos-de-prueba.md).
-
-> Regla de oro: el video debe ser **cenital** (cámara mirando hacia abajo),
-> 10–40 m de altura, con plantas individuales distinguibles. Tomas oblicuas al
-> horizonte o muy altas no funcionan.
-
-## 7. Limitaciones conocidas (MVP)
-
-- El conteo único es estimado (sin georreferencia ni stitching de ortomosaico).
-- El modelo UAV cubre bien cultivos en hilera vistos desde arriba; en cultivos
-  muy distintos usar el modo `cultivo` y/o el detector `world`.
-- Palmeras/árboles muy grandes aún no tienen modelo confiable (se evaluó
-  RT-DETR de palmeras y se descartó por falsos positivos).
+| Clave | Para qué |
+|---|---|
+| `DEVICE` | `cuda` o `cpu` |
+| `DEFAULT_CONF` | Confianza — `0.05` a propósito, ver arriba |
+| `TRACK_BOOST` | Sube la confianza que ve ByteTrack sin tocar la detección |
+| `WORK_RES` | Resolución de inferencia |
+| `GAP_ALERT_PCT` | Despoblamiento que dispara alerta |
 
 ## Pruebas
 
@@ -107,14 +126,65 @@ python -m pytest -q
 ```
 
 Quince comprobaciones en cuatro bloques: que la config carga y los pesos están,
-que el detector responde ante un frame vacío sin inventarse plantas, que la
-analítica cuenta las plantas únicas de una hilera sintética, encuentra el hueco
-que se le dejó a propósito y **dispara la alerta de despoblamiento**, y que una
-pasada real de 60 fotogramas deja el MP4 anotado y el CSV con su resumen.
+que el detector no se inventa plantas ante un fotograma vacío, que la analítica
+cuenta las plantas únicas de una hilera sintética, encuentra el hueco que se le
+dejó a propósito y **dispara la alerta de despoblamiento**, y que una pasada
+real de 60 fotogramas deja el MP4 anotado y el CSV con su resumen.
 
-Lo que falta por no venir en el repositorio — pesos, videos — se **salta**, no
-se da por bueno. Y un fallo rompe la suite: antes se imprimía «✗» y pytest
-seguía en verde, que es peor que no tener pruebas.
+Lo que falta por no venir en el repositorio —pesos, videos— se **salta**, no se
+da por bueno. Y un fallo rompe la suite: antes se imprimía «✗» y pytest seguía
+en verde, que es peor que no tener pruebas.
 
-<sub>OMNI Agro · ApexCorp — desarrollado por
+<!-- GITFLOW:inicio -->
+
+## Cómo se trabajó
+
+**7 commits**, **4 fusiones** y **2 etiquetas** (`v0.1.0`, `v0.2.0`). Cada rama entra con `--no-ff`: un merge aplastado ahorra una línea y borra la única prueba de que aquello fue una tarea con principio y final.
+
+```mermaid
+gitGraph
+   commit id: "import"
+   branch develop
+   checkout develop
+   branch feature/repository-hygiene
+   checkout feature/repository-hygiene
+   commit
+   checkout develop
+   merge feature/repository-hygiene
+   checkout main
+   merge develop tag: "v0.1.0"
+   checkout develop
+   branch feature/portable-paths-and-docs
+   checkout feature/portable-paths-and-docs
+   commit
+   checkout develop
+   merge feature/portable-paths-and-docs
+   checkout main
+   merge develop tag: "v0.2.0"
+```
+
+| Prefijo | Para qué | Ramas |
+|---|---|---|
+| `feature/` | trabajo acotado, se integra en develop | 2 |
+| `develop/` | rama de integración | 2 |
+
+| Rama | Responsabilidad | Regla de salida |
+|---|---|---|
+| `main` | Lo que ve primero quien llega al repositorio | Solo recibe trabajo terminado y con las pruebas en verde |
+| `develop` | Integración: aquí se junta todo antes de subir | Merge `--no-ff` desde una rama `feature/*` |
+| `feature/*` | Un trabajo acotado, nombrado por lo que hace | Merge `--no-ff` a `develop` con sus pruebas escritas |
+
+Los mensajes siguen *Conventional Commits* y están en inglés. Explican **por qué**, no qué: el *qué* ya está en el diff. Varios cuentan el fallo que arreglan y cómo se descubrió, que es lo que sirve dentro de seis meses.
+
+<sub>El diagrama lo genera <a href="scripts/gitflow.py"><code>scripts/gitflow.py</code></a> leyendo <code>git log --merges</code>.</sub>
+
+<!-- GITFLOW:fin -->
+
+---
+
+## Licencia
+
+Uso interno de ApexCorp S.A.C.
+
+<sub>OMNI Agro · ApexCorp S.A.C. — desarrollado por
 <a href="https://github.com/danielyatacoblas">Daniel Yataco Blas</a></sub>
