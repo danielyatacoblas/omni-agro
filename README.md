@@ -7,7 +7,9 @@
 > ![pruebas](https://img.shields.io/badge/pruebas-15%20comprobaciones-129A6B)
 > ![licencia](https://img.shields.io/badge/uso-interno%20ApexCorp-E19100)
 
-![OMNI Agro en marcha](docs/capturas/01-conteo-de-plantas.png)
+<p align="center">
+  <img src="docs/portada.svg" alt="OMNI Agro: del sobrevuelo del dron a un censo auditable" width="100%">
+</p>
 
 ## El problema
 
