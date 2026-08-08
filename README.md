@@ -79,14 +79,14 @@ recto, que es lo que pasa siempre.
 
 <!-- MODELOS:inicio -->
 
-### Los modelos, medidos
+### Qué tan bien detecta cada modelo
 
-| Modelo | Para qué | Entrada | Precisión | Recall | mAP@50 | mAP@50-95 |
+| Modelo | Para qué | Precisión | Recall | mAP@50 | mAP@50-95 | La cifra sale de |
 |---|---|---|---|---|---|---|
-| **`uav_weed_yolo26.pt`** | Cultivo y maleza desde el aire | 512² | 84.5 % | 71.1 % | 80.8 % | 55.6 % |
-| **`yolov8s-world.pt`** | Cultivos fuera del vocabulario del UAV | 640² | — | — | — | — |
+| **`uav_weed_yolo26.pt`** | Cultivo y maleza desde el aire | 84.5 % | 71.1 % | 80.8 % | 55.6 % | el propio `.pt` |
+| **`yolov8s-world.pt`** | Cultivos fuera del vocabulario del UAV | — | — | 52.0 % | 37.4 % | [su documentación](https://docs.ultralytics.com/models/yolo-world/)<br><sub>transferencia sin entrenamiento (zero-shot) sobre COCO</sub> |
 
-<sub>Estas cuatro columnas **no** se calculan aquí: salen del propio archivo `.pt`, donde Ultralytics guarda la validación del entrenamiento que produjo esos pesos. Son el acierto sobre el conjunto de validación de quien lo entrenó, **no** sobre los videos de este proyecto. Medir eso exigiría etiquetar a mano esta operación concreta, que es trabajo que un MVP todavía no ha hecho; dar un porcentaje inventado sería peor que no darlo. Comprobación de que la lectura es correcta: `yolo11n` sale con mAP@50-95 = 39,4 % y Ultralytics publica 39,5 % para ese modelo en COCO.</sub>
+<sub>Ninguna de estas cifras se calcula aquí, y la última columna dice cuál es cuál. <b>El propio <code>.pt</code></b>: Ultralytics guardó dentro del archivo la validación del entrenamiento que lo produjo, así que es el acierto que midió quien lo entrenó sobre <i>su</i> conjunto. <b>Su documentación</b>: ese archivo no guardó métricas, y se cita lo que publica su autor con enlace para comprobarlo. <b>No publicado</b>: no hay cifra en ninguna parte, y se dice en vez de rellenar el hueco.<br>En los tres casos son cifras sobre el conjunto de validación de quien entrenó, <b>no</b> sobre los videos de este proyecto. Medir eso exigiría etiquetar a mano esta operación concreta, que es trabajo que un MVP todavía no ha hecho; un porcentaje inventado sería peor que ninguno. Comprobación de que la lectura del <code>.pt</code> es correcta: <code>yolo11n</code> sale con mAP@50-95 = 39,4 % y Ultralytics publica 39,5 % para ese modelo en COCO.</sub>
 
 ### De dónde sale cada modelo
 
@@ -95,14 +95,26 @@ recto, que es lo que pasa siempre.
 | **`uav_weed_yolo26.pt`** | `retrain_data` | 92 | 512×512 | Afinado sobre vistas cenitales de dron |
 | **`yolov8s-world.pt`** | `—` | 100 | 640×640 | [Ultralytics YOLO-World](https://docs.ultralytics.com/models/yolo-world/) |
 
-<sub>El conjunto, las épocas y la resolución salen de `train_args`, que Ultralytics guarda dentro del propio `.pt`. Es decir: no es lo que dice la documentación del modelo, es lo que quedó grabado en el archivo que este repositorio usa de verdad. Los nombres de conjunto son los del disco de quien entrenó —`retrain_data`, `safe_human`— porque es literalmente lo que hay dentro.</sub>
+<sub>El conjunto, las épocas y la resolución salen de <code>train_args</code>, que Ultralytics guarda dentro del propio <code>.pt</code>. Es decir: no es lo que dice la ficha del modelo, es lo que quedó grabado en el archivo que este repositorio carga de verdad. Los nombres de conjunto son los del disco de quien entrenó —<code>retrain_data</code>, <code>safe_human</code>— porque es literalmente lo que hay dentro.</sub>
 
-| Modelo | Parámetros | Clases | Latencia (mejor) | Latencia (mediana) | Det./fotograma | Confianza media |
-|---|---|---|---|---|---|---|
-| **`uav_weed_yolo26.pt`** | 26.2 M | 2 | 72.9 ms · 14 fps | 96.3 ms · 10.4 fps | 71.4 | 0.176 |
-| **`yolov8s-world.pt`** | 13.4 M | 80 | 16.6 ms · 60 fps | 22.2 ms · 45.0 fps | 1.7 | 0.105 |
+### Cuánto tarda cada uno, medido aquí
 
-<sub>Esto sí se mide aquí, con <a href="scripts/medir_modelos.py"><code>scripts/medir_modelos.py</code></a>, sobre fotogramas reales de los videos del repositorio, en una RTX 3060 Laptop y a la resolución que usa la aplicación. Sesenta fotogramas, descartando los veinte primeros.<br>Se dan <b>dos</b> latencias a propósito. Esta GPU está a 210 MHz en reposo y tarda segundos en subir de reloj, así que la mediana se mueve bastante entre pasadas —el mismo <code>yolo11n</code> ha dado 20 y 48 fps— mientras que el mejor caso es estable y representa lo que la máquina puede sostener. Dar solo la cifra buena sería vender de más; dar solo la mediana, castigar al modelo por la gestión de energía del portátil.</sub>
+| Modelo | Parámetros | Clases | Latencia (mejor) | Latencia (mediana) | Umbral | Det./fotograma | Confianza media |
+|---|---|---|---|---|---|---|---|
+| **`uav_weed_yolo26.pt`** | 26.2 M | 2 | 81.5 ms · 12 fps | 98.9 ms · 10.1 fps | `0.05` | 71.4 | 0.176 |
+| **`yolov8s-world.pt`** | 13.4 M | 80 | 17.9 ms · 56 fps | 21.0 ms · 47.5 fps | `0.05` | 1.7 | 0.105 |
+
+<sub>Esto sí se mide aquí, con <a href="scripts/medir_modelos.py"><code>scripts/medir_modelos.py</code></a>, sobre fotogramas reales de los videos del repositorio, en una RTX 3060 Laptop y a la resolución que usa la aplicación. Sesenta fotogramas, descartando los veinte primeros. El umbral es el que usa la aplicación, y va en la tabla porque «det./fotograma» no significa nada sin él: el mismo modelo a 0.05 y a 0.50 devuelve cantidades incomparables. «Confianza media» es la media de la puntuación de lo que pasó ese umbral — no es acierto, pero dice si el modelo trabaja cómodo o al límite en este material.<br>Se dan <b>dos</b> latencias a propósito. Esta GPU está a 210 MHz en reposo y tarda segundos en subir de reloj, así que la mediana se mueve bastante entre pasadas —el mismo <code>yolo11n</code> ha dado 20 y 48 fps— mientras que el mejor caso es estable y representa lo que la máquina puede sostener. Dar solo la cifra buena sería vender de más; dar solo la mediana, castigar al modelo por la gestión de energía del portátil.</sub>
+
+### Los umbrales que usa este proyecto
+
+Una cifra de mAP sin el umbral al que se trabaja no dice nada: el mismo modelo a 0.05 y a 0.50 se comporta como dos modelos distintos. Estos son los valores por defecto, todos cambiables por variable de entorno sin tocar código.
+
+| Umbral | Valor | Por qué ese y no otro |
+|---|---|---|
+| Confianza · cultivo y maleza | **`0.05`** | Desde 20 m una planta ocupa 30–120 px y el modelo nunca está seguro. Con un umbral normal se pierde medio lote. Se recoge de más y el seguimiento descarta lo que no se sostiene entre fotogramas. |
+| Activación de ByteTrack | **`0.05`** | Igual de bajo, por lo mismo. Un umbral de seguimiento normal tiraría justo las detecciones flojas que aquí son la mayoría. |
+| TRACK_BOOST | **`sí`** | Sube la confianza que VE el seguidor sin tocar la detección. Deja elegir por separado qué se detecta y qué merece un ID. |
 
 <!-- MODELOS:fin -->
 
